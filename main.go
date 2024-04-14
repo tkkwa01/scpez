@@ -2,64 +2,71 @@ package main
 
 import (
 	"bytes"
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"golang.org/x/crypto/ssh"
+	"path/filepath"
 	"strings"
 )
 
 func main() {
 	app := tview.NewApplication()
 
-	// フォームとリストビューを作成
 	form := tview.NewForm()
-	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
 
-	// フォームのフィールドを追加
-	form.AddInputField("Server", "", 20, nil, nil)
-	form.AddInputField("Username", "", 20, nil, nil)
-	form.AddPasswordField("Password", "", 10, '*', nil)
-	form.AddButton("Connect", func() {
-		server := form.GetFormItemByLabel("Server").(*tview.InputField).GetText()
-		username := form.GetFormItemByLabel("Username").(*tview.InputField).GetText()
-		password := form.GetFormItemByLabel("Password").(*tview.InputField).GetText()
+	// ここで入力フィールドを設定
+	form.AddInputField("Server", "", 20, nil, nil).
+		AddInputField("Username", "", 20, nil, nil).
+		AddPasswordField("Password", "", 10, '*', nil).
+		AddButton("Connect", func() {
+			// ここで入力フィールドの値を取得
+			server := form.GetFormItem(0).(*tview.InputField).GetText()
+			username := form.GetFormItem(1).(*tview.InputField).GetText()
+			password := form.GetFormItem(2).(*tview.InputField).GetText()
+			currentDir := "/home/" + username
+			navigateDir(currentDir, username, password, server, app)
+		}).
+		AddButton("Quit", func() {
+			app.Stop()
+		})
 
-		// SSH接続とファイルリストの取得
-		files, err := connectAndListFiles(username, password, server)
-		if err != nil {
-			panic(err) // エラーハンドリングは適切に行うべきです
-		}
-
-		// リストビューにファイルを追加
-		list.Clear()
-		for _, file := range files {
-			if file != "" {
-				list.AddItem(file, "", 0, nil)
-			}
-		}
-		app.SetFocus(list)
-	})
-	form.AddButton("Quit", func() {
-		app.Stop()
-	})
-
-	// レイアウトを設定
-	flex := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(form, 9, 1, true).
-		AddItem(list, 0, 1, false)
-
-	if err := app.SetRoot(flex, true).Run(); err != nil {
+	if err := app.SetRoot(form, true).Run(); err != nil {
 		panic(err)
 	}
 }
 
-// SSH接続とコマンド実行の関数
-func connectAndListFiles(username, password, server string) ([]string, error) {
+func navigateDir(path, username, password, server string, app *tview.Application) {
+	files, err := connectAndListFiles(username, password, server, path)
+	if err != nil {
+		panic(err) // 適切なエラーハンドリングを行う
+	}
+
+	// ディレクトリ内容を表示するリスト
+	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
+	for _, file := range files {
+		list.AddItem(file, "", 0, nil)
+	}
+	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEnter {
+			selectedFile, _ := list.GetItemText(list.GetCurrentItem())
+			newPath := filepath.Join(path, selectedFile)
+			navigateDir(newPath, username, password, server, app)
+			return nil
+		}
+		return event
+	})
+
+	// リストをアプリのルートに設定
+	app.SetRoot(list, true)
+}
+
+func connectAndListFiles(username, password, server, dir string) ([]string, error) {
 	config := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(password),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 安全でない例、実際には適切な設定が必要
 	}
 
 	client, err := ssh.Dial("tcp", server+":22", config)
@@ -76,9 +83,9 @@ func connectAndListFiles(username, password, server string) ([]string, error) {
 
 	var b bytes.Buffer
 	session.Stdout = &b
-	if err := session.Run("ls"); err != nil {
+	if err := session.Run("ls \"" + dir + "\""); err != nil {
 		return nil, err
 	}
 
-	return strings.Split(b.String(), "\n"), nil
+	return strings.Split(strings.TrimSpace(b.String()), "\n"), nil
 }
