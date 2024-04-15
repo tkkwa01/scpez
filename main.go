@@ -27,7 +27,7 @@ func main() {
 	helpText := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect File")
+		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect File  L: Cat File  Q: Close Modal")
 
 	helpText.SetBackgroundColor(tcell.ColorBlue)
 	rootFlex.AddItem(helpText, 1, 1, false)
@@ -46,7 +46,7 @@ func createForm(app *tview.Application, rootFlex *tview.Flex) *tview.Form {
 			server := form.GetFormItem(0).(*tview.InputField).GetText()
 			username := form.GetFormItem(1).(*tview.InputField).GetText()
 			password := form.GetFormItem(2).(*tview.InputField).GetText()
-			currentDir := "/home/" + username // starting directory
+			currentDir := "/home/" + username
 			navigateDir(currentDir, username, password, server, app, rootFlex, form)
 		}).
 		AddButton("Quit", func() {
@@ -62,8 +62,7 @@ func navigateDir(path, username, password, server string, app *tview.Application
 		return
 	}
 
-	selectedFiles := make(map[int]struct{}) // Tracks selected files
-
+	selectedFiles := make(map[int]struct{})
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
 	for _, file := range files {
 		list.AddItem(file, "", 0, nil)
@@ -72,10 +71,10 @@ func navigateDir(path, username, password, server string, app *tview.Application
 	list.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
 		if _, ok := selectedFiles[index]; ok {
 			delete(selectedFiles, index)
-			list.SetItemText(index, files[index], "") // Reset color if unselected
+			list.SetItemText(index, files[index], "")
 		} else {
 			selectedFiles[index] = struct{}{}
-			list.SetItemText(index, "[blue]"+files[index]+"[white]", "") // Change color if selected
+			list.SetItemText(index, "[blue]"+files[index]+"[white]", "")
 		}
 	})
 
@@ -86,12 +85,21 @@ func navigateDir(path, username, password, server string, app *tview.Application
 			selectedPath := filepath.Join(path, selectedItem)
 			isDir, err := isValidDirectory(username, password, server, selectedPath)
 			if err != nil || !isDir {
-				return nil // エラーが発生したか、ディレクトリではない場合は何もせずにリターン
+				return nil
 			}
 			navigateDir(selectedPath, username, password, server, app, rootFlex, form)
 			return nil
 		case tcell.KeyRune:
-			if event.Rune() == 'b' || event.Rune() == 'B' {
+			if event.Rune() == 'l' || event.Rune() == 'L' {
+				selectedItem, _ := list.GetItemText(list.GetCurrentItem())
+				selectedPath := filepath.Join(path, selectedItem)
+				showFileContent(username, password, server, selectedPath, app, rootFlex, form)
+				return nil
+			} else if event.Rune() == 'q' || event.Rune() == 'Q' {
+				app.SetRoot(rootFlex, true)
+				app.SetFocus(form)
+				return nil
+			} else if event.Rune() == 'b' || event.Rune() == 'B' {
 				if rootFlex.GetItemCount() > 1 {
 					rootFlex.RemoveItem(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
 					app.SetFocus(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
@@ -103,10 +111,10 @@ func navigateDir(path, username, password, server string, app *tview.Application
 				index := list.GetCurrentItem()
 				if _, ok := selectedFiles[index]; ok {
 					delete(selectedFiles, index)
-					list.SetItemText(index, files[index], "") // 色をリセット
+					list.SetItemText(index, files[index], "")
 				} else {
 					selectedFiles[index] = struct{}{}
-					list.SetItemText(index, "[blue]"+files[index]+"[white]", "") // 選択色を設定
+					list.SetItemText(index, "[blue]"+files[index]+"[white]", "")
 				}
 				return nil
 			}
@@ -116,6 +124,61 @@ func navigateDir(path, username, password, server string, app *tview.Application
 
 	rootFlex.AddItem(list, 0, 1, true)
 	app.SetFocus(list)
+}
+
+func showFileContent(username, password, server, path string, app *tview.Application, rootFlex *tview.Flex, form *tview.Form) {
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	client, err := ssh.Dial("tcp", server+":22", config)
+	if err != nil {
+		return
+	}
+	defer client.Close()
+
+	session, err := client.NewSession()
+	if err != nil {
+		return
+	}
+	defer session.Close()
+
+	var b bytes.Buffer
+	session.Stdout = &b
+	if err := session.Run("cat \"" + path + "\""); err != nil {
+		return
+	}
+
+	output := b.String()
+	if output == "" {
+		return
+	}
+
+	modal := tview.NewModal().
+		SetText(output).
+		AddButtons([]string{"Close"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			app.SetRoot(rootFlex, true)
+			app.SetFocus(form)
+		})
+	app.SetRoot(modal, false)
+	app.SetFocus(modal)
+}
+
+func showModal(app *tview.Application, message string, rootFlex *tview.Flex, form *tview.Form) {
+	modal := tview.NewModal().
+		SetText(message).
+		AddButtons([]string{"Ok"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			app.SetRoot(rootFlex, true)
+			app.SetFocus(form)
+		})
+	app.SetRoot(modal, false)
+	app.SetFocus(modal)
 }
 
 func isValidDirectory(username, password, server, path string) (bool, error) {
@@ -181,16 +244,4 @@ func connectAndListFiles(username, password, server, dir string) ([]string, erro
 	}
 
 	return strings.Split(strings.TrimSpace(b.String()), "\n"), nil
-}
-
-func showModal(app *tview.Application, message string, rootFlex *tview.Flex, form *tview.Form) {
-	modal := tview.NewModal().
-		SetText(message).
-		AddButtons([]string{"Ok"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			app.SetRoot(rootFlex, true)
-			app.SetFocus(form)
-		})
-	app.SetRoot(modal, false)
-	app.SetFocus(modal)
 }
