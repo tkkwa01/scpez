@@ -90,7 +90,6 @@ func navigateDir(path, username, password, server string, app *tview.Application
 			}
 			navigateDir(selectedPath, username, password, server, app, rootFlex, form)
 			return nil
-
 		case tcell.KeyRune:
 			if event.Rune() == 'b' || event.Rune() == 'B' {
 				if rootFlex.GetItemCount() > 1 {
@@ -98,6 +97,16 @@ func navigateDir(path, username, password, server string, app *tview.Application
 					app.SetFocus(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
 				} else {
 					app.SetFocus(form)
+				}
+				return nil
+			} else if event.Rune() == ' ' {
+				index := list.GetCurrentItem()
+				if _, ok := selectedFiles[index]; ok {
+					delete(selectedFiles, index)
+					list.SetItemText(index, files[index], "") // 色をリセット
+				} else {
+					selectedFiles[index] = struct{}{}
+					list.SetItemText(index, "[blue]"+files[index]+"[white]", "") // 選択色を設定
 				}
 				return nil
 			}
