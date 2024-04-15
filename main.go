@@ -27,7 +27,7 @@ func main() {
 	helpText := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory")
+		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect File")
 
 	helpText.SetBackgroundColor(tcell.ColorBlue)
 	rootFlex.AddItem(helpText, 1, 1, false)
@@ -82,10 +82,15 @@ func navigateDir(path, username, password, server string, app *tview.Application
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEnter:
-			selectedFile, _ := list.GetItemText(list.GetCurrentItem())
-			newPath := filepath.Join(path, selectedFile)
-			navigateDir(newPath, username, password, server, app, rootFlex, form)
+			selectedItem, _ := list.GetItemText(list.GetCurrentItem())
+			selectedPath := filepath.Join(path, selectedItem)
+			isDir, err := isValidDirectory(username, password, server, selectedPath)
+			if err != nil || !isDir {
+				return nil // エラーが発生したか、ディレクトリではない場合は何もせずにリターン
+			}
+			navigateDir(selectedPath, username, password, server, app, rootFlex, form)
 			return nil
+
 		case tcell.KeyRune:
 			if event.Rune() == 'b' || event.Rune() == 'B' {
 				if rootFlex.GetItemCount() > 1 {
@@ -102,6 +107,41 @@ func navigateDir(path, username, password, server string, app *tview.Application
 
 	rootFlex.AddItem(list, 0, 1, true)
 	app.SetFocus(list)
+}
+
+func isValidDirectory(username, password, server, path string) (bool, error) {
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 本番環境では適切なホストキーの検証を行うこと
+	}
+
+	client, err := ssh.Dial("tcp", server+":22", config)
+	if err != nil {
+		return false, err
+	}
+	defer client.Close()
+
+	session, err := client.NewSession()
+	if err != nil {
+		return false, err
+	}
+	defer session.Close()
+
+	var b bytes.Buffer
+	session.Stdout = &b
+	cmd := "ls -ld \"" + path + "\""
+	if err := session.Run(cmd); err != nil {
+		return false, err
+	}
+
+	output := b.String()
+	if len(output) > 0 && output[0] == 'd' {
+		return true, nil // ディレクトリである
+	}
+	return false, nil // ディレクトリではない
 }
 
 func connectAndListFiles(username, password, server, dir string) ([]string, error) {
