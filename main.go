@@ -24,7 +24,15 @@ func main() {
 			username := form.GetFormItem(1).(*tview.InputField).GetText()
 			password := form.GetFormItem(2).(*tview.InputField).GetText()
 			currentDir := "/home/" + username // starting directory
-			navigateDir(currentDir, username, password, server, app, rootFlex)
+			if err := navigateDir(currentDir, username, password, server, app, rootFlex); err != nil {
+				modal := tview.NewModal().
+					SetText("Failed to connect: " + err.Error()).
+					AddButtons([]string{"Ok"}).
+					SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+						app.SetRoot(rootFlex, true).SetFocus(form)
+					})
+				app.SetRoot(modal, false).SetFocus(modal)
+			}
 		}).
 		AddButton("Quit", func() {
 			app.Stop()
@@ -37,10 +45,10 @@ func main() {
 	}
 }
 
-func navigateDir(path, username, password, server string, app *tview.Application, rootFlex *tview.Flex) {
+func navigateDir(path, username, password, server string, app *tview.Application, rootFlex *tview.Flex) error {
 	files, err := connectAndListFiles(username, password, server, path)
 	if err != nil {
-		panic(err) // Proper error handling is needed
+		return err
 	}
 
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
@@ -53,23 +61,24 @@ func navigateDir(path, username, password, server string, app *tview.Application
 		case tcell.KeyEnter:
 			selectedFile, _ := list.GetItemText(list.GetCurrentItem())
 			newPath := filepath.Join(path, selectedFile)
-			navigateDir(newPath, username, password, server, app, rootFlex)
-			return nil
+			if err := navigateDir(newPath, username, password, server, app, rootFlex); err != nil {
+				return nil
+			}
 		case tcell.KeyRune:
-			if event.Rune() == 'b' || event.Rune() == 'B' { // Listen for 'B' key
+			if event.Rune() == 'b' || event.Rune() == 'B' {
 				if rootFlex.GetItemCount() > 1 {
 					rootFlex.RemoveItem(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
 				}
 				return nil
 			}
 		}
-		// Pass other key events to the default handler
 		return event
 	})
 
 	// 新しいリストを追加し、フォーカスをそのリストに移動
 	rootFlex.AddItem(list, 0, 1, true)
 	app.SetFocus(list)
+	return nil
 }
 
 func connectAndListFiles(username, password, server, dir string) ([]string, error) {
