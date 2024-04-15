@@ -25,12 +25,11 @@ func main() {
 	rootFlex.AddItem(mainContentFlex, 0, 1, true)
 
 	helpText := tview.NewTextView().
-		SetDynamicColors(true). // ダイナミックカラーを有効にする
+		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
 		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory")
 
 	helpText.SetBackgroundColor(tcell.ColorBlue)
-
 	rootFlex.AddItem(helpText, 1, 1, false)
 
 	if err := app.SetRoot(rootFlex, true).Run(); err != nil {
@@ -63,10 +62,22 @@ func navigateDir(path, username, password, server string, app *tview.Application
 		return
 	}
 
+	selectedFiles := make(map[int]struct{}) // Tracks selected files
+
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
 	for _, file := range files {
 		list.AddItem(file, "", 0, nil)
 	}
+
+	list.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+		if _, ok := selectedFiles[index]; ok {
+			delete(selectedFiles, index)
+			list.SetItemText(index, files[index], "") // Reset color if unselected
+		} else {
+			selectedFiles[index] = struct{}{}
+			list.SetItemText(index, "[blue]"+files[index]+"[white]", "") // Change color if selected
+		}
+	})
 
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
