@@ -11,10 +11,34 @@ import (
 
 func main() {
 	app := tview.NewApplication()
+	rootFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	// ルートとなるFlexコンテナ
-	rootFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
+	title := tview.NewTextView().
+		SetText("SCP-Ez").
+		SetTextAlign(tview.AlignCenter)
+	rootFlex.AddItem(title, 3, 1, false)
+	title.SetBorder(true)
 
+	mainContentFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
+	form := createForm(app, mainContentFlex)
+	mainContentFlex.AddItem(form, 0, 1, true)
+	rootFlex.AddItem(mainContentFlex, 0, 1, true)
+
+	helpText := tview.NewTextView().
+		SetDynamicColors(true). // ダイナミックカラーを有効にする
+		SetTextAlign(tview.AlignCenter).
+		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory")
+
+	helpText.SetBackgroundColor(tcell.ColorBlue)
+
+	rootFlex.AddItem(helpText, 1, 1, false)
+
+	if err := app.SetRoot(rootFlex, true).Run(); err != nil {
+		panic(err)
+	}
+}
+
+func createForm(app *tview.Application, rootFlex *tview.Flex) *tview.Form {
 	form := tview.NewForm()
 	form.AddInputField("Server", "", 20, nil, nil).
 		AddInputField("Username", "", 20, nil, nil).
@@ -24,31 +48,19 @@ func main() {
 			username := form.GetFormItem(1).(*tview.InputField).GetText()
 			password := form.GetFormItem(2).(*tview.InputField).GetText()
 			currentDir := "/home/" + username // starting directory
-			if err := navigateDir(currentDir, username, password, server, app, rootFlex); err != nil {
-				modal := tview.NewModal().
-					SetText("Failed to connect: " + err.Error()).
-					AddButtons([]string{"Ok"}).
-					SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-						app.SetRoot(rootFlex, true).SetFocus(form)
-					})
-				app.SetRoot(modal, false).SetFocus(modal)
-			}
+			navigateDir(currentDir, username, password, server, app, rootFlex, form)
 		}).
 		AddButton("Quit", func() {
 			app.Stop()
 		})
-
-	rootFlex.AddItem(form, 0, 1, true)
-
-	if err := app.SetRoot(rootFlex, true).Run(); err != nil {
-		panic(err)
-	}
+	return form
 }
 
-func navigateDir(path, username, password, server string, app *tview.Application, rootFlex *tview.Flex) error {
+func navigateDir(path, username, password, server string, app *tview.Application, rootFlex *tview.Flex, form *tview.Form) {
 	files, err := connectAndListFiles(username, password, server, path)
 	if err != nil {
-		return err
+		showModal(app, "Failed to connect: "+err.Error(), rootFlex, form)
+		return
 	}
 
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
@@ -61,13 +73,15 @@ func navigateDir(path, username, password, server string, app *tview.Application
 		case tcell.KeyEnter:
 			selectedFile, _ := list.GetItemText(list.GetCurrentItem())
 			newPath := filepath.Join(path, selectedFile)
-			if err := navigateDir(newPath, username, password, server, app, rootFlex); err != nil {
-				return nil
-			}
+			navigateDir(newPath, username, password, server, app, rootFlex, form)
+			return nil
 		case tcell.KeyRune:
 			if event.Rune() == 'b' || event.Rune() == 'B' {
 				if rootFlex.GetItemCount() > 1 {
 					rootFlex.RemoveItem(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
+					app.SetFocus(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
+				} else {
+					app.SetFocus(form)
 				}
 				return nil
 			}
@@ -75,10 +89,8 @@ func navigateDir(path, username, password, server string, app *tview.Application
 		return event
 	})
 
-	// 新しいリストを追加し、フォーカスをそのリストに移動
 	rootFlex.AddItem(list, 0, 1, true)
 	app.SetFocus(list)
-	return nil
 }
 
 func connectAndListFiles(username, password, server, dir string) ([]string, error) {
@@ -109,4 +121,16 @@ func connectAndListFiles(username, password, server, dir string) ([]string, erro
 	}
 
 	return strings.Split(strings.TrimSpace(b.String()), "\n"), nil
+}
+
+func showModal(app *tview.Application, message string, rootFlex *tview.Flex, form *tview.Form) {
+	modal := tview.NewModal().
+		SetText(message).
+		AddButtons([]string{"Ok"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			app.SetRoot(rootFlex, true)
+			app.SetFocus(form)
+		})
+	app.SetRoot(modal, false)
+	app.SetFocus(modal)
 }
