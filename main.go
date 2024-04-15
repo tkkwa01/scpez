@@ -12,52 +12,64 @@ import (
 func main() {
 	app := tview.NewApplication()
 
-	form := tview.NewForm()
+	// ルートとなるFlexコンテナ
+	rootFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
 
-	// ここで入力フィールドを設定
+	form := tview.NewForm()
 	form.AddInputField("Server", "", 20, nil, nil).
 		AddInputField("Username", "", 20, nil, nil).
 		AddPasswordField("Password", "", 10, '*', nil).
 		AddButton("Connect", func() {
-			// ここで入力フィールドの値を取得
 			server := form.GetFormItem(0).(*tview.InputField).GetText()
 			username := form.GetFormItem(1).(*tview.InputField).GetText()
 			password := form.GetFormItem(2).(*tview.InputField).GetText()
-			currentDir := "/home/" + username
-			navigateDir(currentDir, username, password, server, app)
+			currentDir := "/home/" + username // starting directory
+			navigateDir(currentDir, username, password, server, app, rootFlex)
 		}).
 		AddButton("Quit", func() {
 			app.Stop()
 		})
 
-	if err := app.SetRoot(form, true).Run(); err != nil {
+	rootFlex.AddItem(form, 0, 1, true)
+
+	if err := app.SetRoot(rootFlex, true).Run(); err != nil {
 		panic(err)
 	}
 }
 
-func navigateDir(path, username, password, server string, app *tview.Application) {
+func navigateDir(path, username, password, server string, app *tview.Application, rootFlex *tview.Flex) {
 	files, err := connectAndListFiles(username, password, server, path)
 	if err != nil {
-		panic(err) // 適切なエラーハンドリングを行う
+		panic(err) // Proper error handling is needed
 	}
 
-	// ディレクトリ内容を表示するリスト
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
 	for _, file := range files {
 		list.AddItem(file, "", 0, nil)
 	}
+
 	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEnter {
+		switch event.Key() {
+		case tcell.KeyEnter:
 			selectedFile, _ := list.GetItemText(list.GetCurrentItem())
 			newPath := filepath.Join(path, selectedFile)
-			navigateDir(newPath, username, password, server, app)
+			navigateDir(newPath, username, password, server, app, rootFlex)
 			return nil
+		case tcell.KeyRune:
+			if event.Rune() == 'b' || event.Rune() == 'B' { // Listen for 'B' key
+				if rootFlex.GetItemCount() > 1 {
+					rootFlex.RemoveItem(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
+				}
+				return nil
+			}
 		}
+		// Pass other key events to the default handler
 		return event
 	})
 
-	// リストをアプリのルートに設定
-	app.SetRoot(list, true)
+	// 新しいリストを追加し、フォーカスをそのリストに移動
+	rootFlex.AddItem(list, 0, 1, true)
+	app.SetFocus(list)
 }
 
 func connectAndListFiles(username, password, server, dir string) ([]string, error) {
@@ -66,7 +78,7 @@ func connectAndListFiles(username, password, server, dir string) ([]string, erro
 		Auth: []ssh.AuthMethod{
 			ssh.Password(password),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 安全でない例、実際には適切な設定が必要
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // Not safe, adjust appropriately
 	}
 
 	client, err := ssh.Dial("tcp", server+":22", config)
