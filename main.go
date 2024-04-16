@@ -27,7 +27,7 @@ func main() {
 	helpText := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect File  L: Cat File  Q: Close Modal")
+		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect File  L: Show File  Q: Close File")
 
 	helpText.SetBackgroundColor(tcell.ColorBlue)
 	rootFlex.AddItem(helpText, 1, 1, false)
@@ -93,29 +93,7 @@ func navigateDir(path, username, password, server string, app *tview.Application
 			if event.Rune() == 'l' || event.Rune() == 'L' {
 				selectedItem, _ := list.GetItemText(list.GetCurrentItem())
 				selectedPath := filepath.Join(path, selectedItem)
-				showFileContent(username, password, server, selectedPath, app, rootFlex, form)
-				return nil
-			} else if event.Rune() == 'q' || event.Rune() == 'Q' {
-				app.SetRoot(rootFlex, true)
-				app.SetFocus(form)
-				return nil
-			} else if event.Rune() == 'b' || event.Rune() == 'B' {
-				if rootFlex.GetItemCount() > 1 {
-					rootFlex.RemoveItem(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
-					app.SetFocus(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
-				} else {
-					app.SetFocus(form)
-				}
-				return nil
-			} else if event.Rune() == ' ' {
-				index := list.GetCurrentItem()
-				if _, ok := selectedFiles[index]; ok {
-					delete(selectedFiles, index)
-					list.SetItemText(index, files[index], "")
-				} else {
-					selectedFiles[index] = struct{}{}
-					list.SetItemText(index, "[blue]"+files[index]+"[white]", "")
-				}
+				showFilePreview(username, password, server, selectedPath, app, rootFlex, form)
 				return nil
 			}
 		}
@@ -126,7 +104,23 @@ func navigateDir(path, username, password, server string, app *tview.Application
 	app.SetFocus(list)
 }
 
-func showFileContent(username, password, server, path string, app *tview.Application, rootFlex *tview.Flex, form *tview.Form) {
+func showFilePreview(username, password, server, path string, app *tview.Application, rootFlex *tview.Flex, form *tview.Form) {
+	content := getFileContent(username, password, server, path)
+	if content == "" {
+		return
+	}
+
+	previewPane := tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignLeft).
+		SetText(content)
+
+	// Adding the preview pane to the right side of the rootFlex
+	rootFlex.AddItem(previewPane, 0, 1, true)
+	app.SetFocus(previewPane)
+}
+
+func getFileContent(username, password, server, path string) string {
 	config := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{
@@ -137,36 +131,23 @@ func showFileContent(username, password, server, path string, app *tview.Applica
 
 	client, err := ssh.Dial("tcp", server+":22", config)
 	if err != nil {
-		return
+		return ""
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return
+		return ""
 	}
 	defer session.Close()
 
 	var b bytes.Buffer
 	session.Stdout = &b
 	if err := session.Run("cat \"" + path + "\""); err != nil {
-		return
+		return ""
 	}
 
-	output := b.String()
-	if output == "" {
-		return
-	}
-
-	modal := tview.NewModal().
-		SetText(output).
-		AddButtons([]string{"Close"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			app.SetRoot(rootFlex, true)
-			app.SetFocus(form)
-		})
-	app.SetRoot(modal, false)
-	app.SetFocus(modal)
+	return b.String()
 }
 
 func showModal(app *tview.Application, message string, rootFlex *tview.Flex, form *tview.Form) {
