@@ -93,7 +93,7 @@ func navigateDir(path, username, password, server string, app *tview.Application
 			if event.Rune() == 'l' || event.Rune() == 'L' {
 				selectedItem, _ := list.GetItemText(list.GetCurrentItem())
 				selectedPath := filepath.Join(path, selectedItem)
-				showFilePreview(username, password, server, selectedPath, app, rootFlex, form)
+				showFilePreview(username, password, server, selectedPath, app, rootFlex)
 				return nil
 			}
 		}
@@ -104,7 +104,7 @@ func navigateDir(path, username, password, server string, app *tview.Application
 	app.SetFocus(list)
 }
 
-func showFilePreview(username, password, server, path string, app *tview.Application, rootFlex *tview.Flex, form *tview.Form) {
+func showFilePreview(username, password, server, path string, app *tview.Application, rootFlex *tview.Flex) {
 	content := getFileContent(username, password, server, path)
 	if content == "" {
 		return
@@ -114,6 +114,8 @@ func showFilePreview(username, password, server, path string, app *tview.Applica
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft).
 		SetText(content)
+	previewPane.SetBorder(true)
+	previewPane.SetTitle(path)
 
 	// Adding the preview pane to the right side of the rootFlex
 	rootFlex.AddItem(previewPane, 0, 1, true)
