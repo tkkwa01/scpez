@@ -90,10 +90,19 @@ func navigateDir(path, username, password, server string, app *tview.Application
 			navigateDir(selectedPath, username, password, server, app, rootFlex, form)
 			return nil
 		case tcell.KeyRune:
-			if event.Rune() == 'l' || event.Rune() == 'L' {
+			switch event.Rune() {
+			case 'l', 'L':
 				selectedItem, _ := list.GetItemText(list.GetCurrentItem())
 				selectedPath := filepath.Join(path, selectedItem)
 				showFilePreview(username, password, server, selectedPath, app, rootFlex, list)
+				return nil
+			case 'b', 'B': // 戻る処理
+				if rootFlex.GetItemCount() > 1 {
+					rootFlex.RemoveItem(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
+					app.SetFocus(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
+				} else {
+					app.SetFocus(form)
+				}
 				return nil
 			}
 		}
