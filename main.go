@@ -93,7 +93,7 @@ func navigateDir(path, username, password, server string, app *tview.Application
 			if event.Rune() == 'l' || event.Rune() == 'L' {
 				selectedItem, _ := list.GetItemText(list.GetCurrentItem())
 				selectedPath := filepath.Join(path, selectedItem)
-				showFilePreview(username, password, server, selectedPath, app, rootFlex)
+				showFilePreview(username, password, server, selectedPath, app, rootFlex, list)
 				return nil
 			}
 		}
@@ -104,7 +104,7 @@ func navigateDir(path, username, password, server string, app *tview.Application
 	app.SetFocus(list)
 }
 
-func showFilePreview(username, password, server, path string, app *tview.Application, rootFlex *tview.Flex) {
+func showFilePreview(username, password, server, path string, app *tview.Application, rootFlex *tview.Flex, list *tview.List) {
 	content := getFileContent(username, password, server, path)
 	if content == "" {
 		return
@@ -123,7 +123,7 @@ func showFilePreview(username, password, server, path string, app *tview.Applica
 	previewPane.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyRune && (event.Rune() == 'q' || event.Rune() == 'Q') {
 			rootFlex.RemoveItem(previewPane)
-			app.SetFocus(rootFlex)
+			app.SetFocus(list)
 			return nil
 		}
 		return event
