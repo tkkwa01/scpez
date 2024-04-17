@@ -39,19 +39,38 @@ func main() {
 
 func createForm(app *tview.Application, rootFlex *tview.Flex) *tview.Form {
 	form := tview.NewForm()
-	form.AddInputField("Server", "", 20, nil, nil).
+
+	// サーバ名のプリセット
+	servers := []string{"sh.edu.kutc.kansai-u.ac.jp", "server2.example.com", "server3.example.net", "Other (Specify)"}
+	var server string // 選択されたまたは入力されたサーバ名
+
+	serverDropdown := tview.NewDropDown().
+		SetLabel("Server: ").
+		SetOptions(servers, nil)
+
+	// サーバ名が「Other (Specify)」の場合に手動入力させる入力フィールド
+	otherServerField := tview.NewInputField().SetLabel("Specify Server: ").SetFieldWidth(20)
+
+	form.AddFormItem(serverDropdown).
+		AddFormItem(otherServerField).
 		AddInputField("Username", "", 20, nil, nil).
 		AddPasswordField("Password", "", 10, '*', nil).
 		AddButton("Connect", func() {
-			server := form.GetFormItem(0).(*tview.InputField).GetText()
-			username := form.GetFormItem(1).(*tview.InputField).GetText()
-			password := form.GetFormItem(2).(*tview.InputField).GetText()
+			_, option := serverDropdown.GetCurrentOption()
+			if option == "Other (Specify)" {
+				server = otherServerField.GetText() // 入力フィールドからサーバ名を取得
+			} else {
+				server = option // ドロップダウンから選択されたサーバ名を使用
+			}
+			username := form.GetFormItem(2).(*tview.InputField).GetText()
+			password := form.GetFormItem(3).(*tview.InputField).GetText()
 			currentDir := "/home/" + username
 			navigateDir(currentDir, username, password, server, app, rootFlex, form)
 		}).
 		AddButton("Quit", func() {
 			app.Stop()
 		})
+
 	return form
 }
 
