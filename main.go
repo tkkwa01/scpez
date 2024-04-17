@@ -27,7 +27,7 @@ func main() {
 	helpText := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect File  L: Show File  Q: Close File")
+		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect  L: Show File  Q: Close File")
 
 	helpText.SetBackgroundColor(tcell.ColorBlue)
 	rootFlex.AddItem(helpText, 1, 1, false)
