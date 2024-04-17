@@ -117,9 +117,17 @@ func showFilePreview(username, password, server, path string, app *tview.Applica
 	previewPane.SetBorder(true)
 	previewPane.SetTitle(path)
 
-	// Adding the preview pane to the right side of the rootFlex
 	rootFlex.AddItem(previewPane, 0, 1, true)
 	app.SetFocus(previewPane)
+
+	previewPane.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyRune && (event.Rune() == 'q' || event.Rune() == 'Q') {
+			rootFlex.RemoveItem(previewPane)
+			app.SetFocus(rootFlex)
+			return nil
+		}
+		return event
+	})
 }
 
 func getFileContent(username, password, server, path string) string {
