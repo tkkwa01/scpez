@@ -115,7 +115,7 @@ func showFilePreview(username, password, server, path string, app *tview.Applica
 		SetTextAlign(tview.AlignLeft).
 		SetText(content)
 	previewPane.SetBorder(true)
-	previewPane.SetTitle(path)
+	previewPane.SetTitle(filepath.Base(path))
 
 	rootFlex.AddItem(previewPane, 0, 1, true)
 	app.SetFocus(previewPane)
