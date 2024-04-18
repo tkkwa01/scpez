@@ -16,7 +16,7 @@ func main() {
 	rootFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 
 	title := tview.NewTextView().
-		SetText("Transfer-Ez").
+		SetText("SCP-Ez").
 		SetTextAlign(tview.AlignCenter)
 	rootFlex.AddItem(title, 3, 1, false)
 	title.SetBorder(true)
@@ -29,7 +29,7 @@ func main() {
 	helpText := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect  T: Transfer  L: Show File  Q: Close File")
+		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect  T: Transfer!  L: Show File  Q: Close File")
 
 	helpText.SetBackgroundColor(tcell.ColorBlue)
 	rootFlex.AddItem(helpText, 1, 1, false)
@@ -43,7 +43,7 @@ func createForm(app *tview.Application, rootFlex *tview.Flex) *tview.Form {
 	form := tview.NewForm()
 
 	// サーバ名のプリセット
-	servers := []string{"sh.edu.kutc.kansai-u.ac.jp", "server2.example.com", "server3.example.net", "Other (Specify)"}
+	servers := []string{"sh.edu.kutc.kansai-u.ac.jp", "Other (Specify)"}
 	var server string // 選択されたまたは入力されたサーバ名
 
 	serverDropdown := tview.NewDropDown().
@@ -90,12 +90,14 @@ func navigateDir(path, username, password, server string, app *tview.Application
 	}
 
 	list.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
-		if _, ok := selectedFiles[mainText]; ok {
-			delete(selectedFiles, mainText)
-			list.SetItemText(index, mainText, "")
+		cleanText := strings.TrimSuffix(strings.TrimPrefix(mainText, "[blue]"), "[white]")
+
+		if _, ok := selectedFiles[cleanText]; ok {
+			delete(selectedFiles, cleanText)
+			list.SetItemText(index, cleanText, "")
 		} else {
-			selectedFiles[mainText] = struct{}{}
-			list.SetItemText(index, "[blue]"+mainText+"[white]", "")
+			selectedFiles[cleanText] = struct{}{}
+			list.SetItemText(index, "[blue]"+cleanText+"[white]", "")
 		}
 	})
 
