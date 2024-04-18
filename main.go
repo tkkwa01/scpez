@@ -5,6 +5,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"golang.org/x/crypto/ssh"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -14,7 +16,7 @@ func main() {
 	rootFlex := tview.NewFlex().SetDirection(tview.FlexRow)
 
 	title := tview.NewTextView().
-		SetText("SCP-Ez").
+		SetText("Transfer-Ez").
 		SetTextAlign(tview.AlignCenter)
 	rootFlex.AddItem(title, 3, 1, false)
 	title.SetBorder(true)
@@ -27,7 +29,7 @@ func main() {
 	helpText := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter).
-		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect  L: Show File  Q: Close File")
+		SetText("Tab: Next  Shift+Tab: Back  Enter: Show Directory  B: Back Directory  Space: Select/Unselect  T: Transfer  L: Show File  Q: Close File")
 
 	helpText.SetBackgroundColor(tcell.ColorBlue)
 	rootFlex.AddItem(helpText, 1, 1, false)
@@ -81,19 +83,19 @@ func navigateDir(path, username, password, server string, app *tview.Application
 		return
 	}
 
-	selectedFiles := make(map[int]struct{})
+	selectedFiles := make(map[string]struct{})
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
 	for _, file := range files {
 		list.AddItem(file, "", 0, nil)
 	}
 
 	list.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
-		if _, ok := selectedFiles[index]; ok {
-			delete(selectedFiles, index)
-			list.SetItemText(index, files[index], "")
+		if _, ok := selectedFiles[mainText]; ok {
+			delete(selectedFiles, mainText)
+			list.SetItemText(index, mainText, "")
 		} else {
-			selectedFiles[index] = struct{}{}
-			list.SetItemText(index, "[blue]"+files[index]+"[white]", "")
+			selectedFiles[mainText] = struct{}{}
+			list.SetItemText(index, "[blue]"+mainText+"[white]", "")
 		}
 	})
 
@@ -123,6 +125,15 @@ func navigateDir(path, username, password, server string, app *tview.Application
 					app.SetFocus(form)
 				}
 				return nil
+			case 't', 'T': // ファイル転送
+				for filePath := range selectedFiles {
+					remotePath := filepath.Join(path, filePath)
+					if err := transferFile(username, password, server, remotePath); err != nil {
+						showModal(app, "Transfer Failed: "+err.Error(), rootFlex, form)
+					}
+				}
+				showModal(app, "Succeed Transfer!!", rootFlex, form)
+				return nil
 			}
 		}
 		return event
@@ -132,6 +143,57 @@ func navigateDir(path, username, password, server string, app *tview.Application
 	app.SetFocus(list)
 }
 
+func transferFile(username, password, server, remotePath string) error {
+	// SSHクライアント設定
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 実際の運用では安全な設定をすること
+	}
+
+	// SSHサーバに接続
+	client, err := ssh.Dial("tcp", server+":22", config)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	// 新しいSSHセッションを開始
+	session, err := client.NewSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+
+	// リモートファイルを開く
+	srcFile, err := session.Output("cat " + "\"" + remotePath + "\"")
+	if err != nil {
+		return err
+	}
+
+	// ホームディレクトリの取得
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	// ローカルファイルパスを決定
+	localFilePath := filepath.Join(homeDir, filepath.Base(remotePath))
+	dstFile, err := os.Create(localFilePath)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	// リモートファイルの内容をローカルファイルに書き込み
+	if _, err = io.Copy(dstFile, bytes.NewReader(srcFile)); err != nil {
+		return err
+	}
+
+	return nil
+}
 func showFilePreview(username, password, server, path string, app *tview.Application, rootFlex *tview.Flex, list *tview.List) {
 	content := getFileContent(username, password, server, path)
 	if content == "" {
