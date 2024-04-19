@@ -4,21 +4,21 @@
 ## 🖼 Screenshot️
 ![SCP-EZ](https://github.com/tkkwa01/scpez/assets/130450932/dbbfc871-e135-4c44-96d4-fe89be1b1e10)
 
-## Description
+## 📝️ Description
 This application is a simple SCP client that allows users to transfer files between two systems. The application is built using Go and tview library. The application is cross-platform and can be run on macOS, Linux and FreeBSD.
 
-## Support OS
+## 💻 Support OS
 - macOS
 - Linux
 - FreeBSD
 
-## Installation
+## ⬇️ Installation
 Clone this repository
    ```sh
    git clone git@github.com:tkkwa01/scpez.git
    ```
    
-## Usage
+## 🏃Usage
 Run the following command to start the application
 ```sh
 cd scpez
@@ -30,7 +30,7 @@ or
 ./SCP-EZ-freebsd
 ```
 
-## Keybindings
+##  👩‍💻 Keybindings
 | Key        | Description                    |
 |------------|--------------------------------|
 | Tab        | switch between panes           |
