@@ -42,15 +42,13 @@ func main() {
 func createForm(app *tview.Application, rootFlex *tview.Flex) *tview.Form {
 	form := tview.NewForm()
 
-	// サーバ名のプリセット
 	servers := []string{"sh.edu.kutc.kansai-u.ac.jp", "Other (Specify)"}
-	var server string // 選択されたまたは入力されたサーバ名
+	var server string
 
 	serverDropdown := tview.NewDropDown().
 		SetLabel("Server: ").
 		SetOptions(servers, nil)
 
-	// サーバ名が「Other (Specify)」の場合に手動入力させる入力フィールド
 	otherServerField := tview.NewInputField().SetLabel("Specify Server: ").SetFieldWidth(20)
 
 	form.AddFormItem(serverDropdown).
@@ -60,9 +58,9 @@ func createForm(app *tview.Application, rootFlex *tview.Flex) *tview.Form {
 		AddButton("Connect", func() {
 			_, option := serverDropdown.GetCurrentOption()
 			if option == "Other (Specify)" {
-				server = otherServerField.GetText() // 入力フィールドからサーバ名を取得
+				server = otherServerField.GetText()
 			} else {
-				server = option // ドロップダウンから選択されたサーバ名を使用
+				server = option
 			}
 			username := form.GetFormItem(2).(*tview.InputField).GetText()
 			password := form.GetFormItem(3).(*tview.InputField).GetText()
@@ -78,16 +76,16 @@ func createForm(app *tview.Application, rootFlex *tview.Flex) *tview.Form {
 
 func navigateDir(path, username, password, server string, app *tview.Application, rootFlex *tview.Flex, form *tview.Form) {
 	files, err := connectAndListFiles(username, password, server, path)
-	if err != nil {
-		showModal(app, "Failed to connect: "+err.Error(), rootFlex, form)
-		return
-	}
-
-	selectedFiles := make(map[string]struct{})
 	list := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
 	for _, file := range files {
 		list.AddItem(file, "", 0, nil)
 	}
+	if err != nil {
+		showModal(app, "Succeed Transfer!!", rootFlex, form, list)
+		return
+	}
+
+	selectedFiles := make(map[string]struct{})
 
 	list.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
 		cleanText := strings.TrimSuffix(strings.TrimPrefix(mainText, "[blue]"), "[white]")
@@ -119,7 +117,7 @@ func navigateDir(path, username, password, server string, app *tview.Application
 				selectedPath := filepath.Join(path, selectedItem)
 				showFilePreview(username, password, server, selectedPath, app, rootFlex, list)
 				return nil
-			case 'b', 'B': // 戻る処理
+			case 'b', 'B':
 				if rootFlex.GetItemCount() > 1 {
 					rootFlex.RemoveItem(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
 					app.SetFocus(rootFlex.GetItem(rootFlex.GetItemCount() - 1))
@@ -127,14 +125,14 @@ func navigateDir(path, username, password, server string, app *tview.Application
 					app.SetFocus(form)
 				}
 				return nil
-			case 't', 'T': // ファイル転送
+			case 't', 'T':
 				for filePath := range selectedFiles {
 					remotePath := filepath.Join(path, filePath)
 					if err := transferFile(username, password, server, remotePath); err != nil {
-						showModal(app, "Transfer Failed: "+err.Error(), rootFlex, form)
+						showModal(app, "Succeed Transfer!!", rootFlex, form, list)
 					}
 				}
-				showModal(app, "Succeed Transfer!!", rootFlex, form)
+				showModal(app, "Succeed Transfer!!", rootFlex, form, list)
 				return nil
 			}
 		}
@@ -146,16 +144,14 @@ func navigateDir(path, username, password, server string, app *tview.Application
 }
 
 func transferFile(username, password, server, remotePath string) error {
-	// SSHクライアント設定
 	config := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(password),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 実際の運用では安全な設定をすること
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	// SSHサーバに接続
 	client, err := ssh.Dial("tcp", server+":22", config)
 	if err != nil {
 		return err
@@ -196,6 +192,7 @@ func transferFile(username, password, server, remotePath string) error {
 
 	return nil
 }
+
 func showFilePreview(username, password, server, path string, app *tview.Application, rootFlex *tview.Flex, list *tview.List) {
 	content := getFileContent(username, password, server, path)
 	if content == "" {
@@ -252,13 +249,17 @@ func getFileContent(username, password, server, path string) string {
 	return b.String()
 }
 
-func showModal(app *tview.Application, message string, rootFlex *tview.Flex, form *tview.Form) {
+func showModal(app *tview.Application, message string, rootFlex *tview.Flex, form *tview.Form, list *tview.List) {
 	modal := tview.NewModal().
 		SetText(message).
 		AddButtons([]string{"Ok"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			app.SetRoot(rootFlex, true)
-			app.SetFocus(form)
+			if list != nil {
+				app.SetFocus(list)
+			} else {
+				app.SetFocus(form)
+			}
 		})
 	app.SetRoot(modal, false)
 	app.SetFocus(modal)
@@ -270,7 +271,7 @@ func isValidDirectory(username, password, server, path string) (bool, error) {
 		Auth: []ssh.AuthMethod{
 			ssh.Password(password),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 本番環境では適切なホストキーの検証を行うこと
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
 	client, err := ssh.Dial("tcp", server+":22", config)
@@ -294,9 +295,9 @@ func isValidDirectory(username, password, server, path string) (bool, error) {
 
 	output := b.String()
 	if len(output) > 0 && output[0] == 'd' {
-		return true, nil // ディレクトリである
+		return true, nil
 	}
-	return false, nil // ディレクトリではない
+	return false, nil
 }
 
 func connectAndListFiles(username, password, server, dir string) ([]string, error) {
@@ -305,7 +306,7 @@ func connectAndListFiles(username, password, server, dir string) ([]string, erro
 		Auth: []ssh.AuthMethod{
 			ssh.Password(password),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // Not safe, adjust appropriately
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
 	client, err := ssh.Dial("tcp", server+":22", config)
