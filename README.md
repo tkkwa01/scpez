@@ -7,6 +7,11 @@
 ## Description
 This application is a simple SCP client that allows users to transfer files between two systems. The application is built using Go and tview library. The application is cross-platform and can be run on macOS, Linux and FreeBSD.
 
+## Support OS
+- macOS
+- Linux
+- FreeBSD
+
 ## Installation
 Clone this repository
    ```sh
@@ -24,3 +29,16 @@ or
 or 
 ./SCP-EZ-freebsd
 ```
+
+## Keybindings
+| Key        | Description                    |
+|------------|--------------------------------|
+| Tab        | switch between panes           |
+| Shft + Tab | back panes                     |
+| Enter      | navigate to the directory      |
+| B          | back to the previous directory |
+| L          | view the contents of the file  |
+| Q          | quit viewing file              |
+| Space      | select / unselect file         |
+| T          | transfer selected files        |
+| ctrl + c   | quit the application           |
