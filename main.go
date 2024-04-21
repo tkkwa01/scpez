@@ -54,7 +54,7 @@ func createForm(app *tview.Application, rootFlex *tview.Flex) *tview.Form {
 	form.AddFormItem(serverDropdown).
 		AddFormItem(otherServerField).
 		AddInputField("Username", "", 20, nil, nil).
-		AddPasswordField("Password", "", 10, '*', nil).
+		AddPasswordField("Password", "", 20, '*', nil).
 		AddButton("Connect", func() {
 			_, option := serverDropdown.GetCurrentOption()
 			if option == "Other (Specify)" {
@@ -81,7 +81,7 @@ func navigateDir(path, username, password, server string, app *tview.Application
 		list.AddItem(file, "", 0, nil)
 	}
 	if err != nil {
-		showModal(app, "Succeed Transfer!!", rootFlex, form, list)
+		showModal(app, "Connection Error: Either the server address, username, or password is incorrect. Please also check your network. Connecting to a VPN may resolve the issue.", rootFlex, form, list)
 		return
 	}
 
@@ -129,7 +129,8 @@ func navigateDir(path, username, password, server string, app *tview.Application
 				for filePath := range selectedFiles {
 					remotePath := filepath.Join(path, filePath)
 					if err := transferFile(username, password, server, remotePath); err != nil {
-						showModal(app, "Succeed Transfer!!", rootFlex, form, list)
+						showModal(app, "Transfer Failed:"+err.Error(), rootFlex, form, list)
+						return nil
 					}
 				}
 				showModal(app, "Succeed Transfer!!", rootFlex, form, list)

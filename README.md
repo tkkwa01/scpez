@@ -33,12 +33,12 @@ or
 ##  👩‍💻 Keybindings
 | Key        | Description                    |
 |------------|--------------------------------|
-| Tab        | switch between panes           |
+| Tab        | next panes                     |
 | Shft + Tab | back panes                     |
 | Enter      | navigate to the directory      |
 | B          | back to the previous directory |
-| L          | view the contents of the file  |
-| Q          | quit viewing file              |
+| L          | preview the file               |
+| Q          | quit preview                   |
 | Space      | select / unselect file         |
 | T          | transfer selected files        |
 | ctrl + c   | quit the application           |
