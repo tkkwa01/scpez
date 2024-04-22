@@ -30,6 +30,16 @@ or
 ./SCP-EZ-freebsd
 ```
 
+### Add the application to the PATH
+add the following line to the .bashrc or .zshrc file
+```sh
+export PATH="/path/to/project/scpez:$PATH"
+```
+and you can run the application from anywhere in the terminal
+```sh
+SCP-EZ-mac
+```
+
 ##  👩‍💻 Keybindings
 | Key        | Description                    |
 |------------|--------------------------------|
