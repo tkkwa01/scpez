@@ -23,11 +23,11 @@ Run the following command to start the application
 ```sh
 cd scpez
 
-./SCP-EZ-mac
+./scpez-mac
 or 
-./SCP-EZ-linux
+./scpez-linux
 or 
-./SCP-EZ-freebsd
+./scpez-freebsd
 ```
 
 ### Add the application to the PATH
@@ -37,7 +37,7 @@ export PATH="/path/to/project/scpez:$PATH"
 ```
 and you can run the application from anywhere in the terminal
 ```sh
-SCP-EZ-mac
+scpez-mac
 ```
 
 ## 🧑‍🎓 How to use
