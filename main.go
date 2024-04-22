@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"golang.org/x/crypto/ssh"
@@ -126,15 +127,45 @@ func navigateDir(path, username, password, server string, app *tview.Application
 				}
 				return nil
 			case 't', 'T':
+				homeDir, err := os.UserHomeDir()
+				if err != nil {
+					showModal(app, "Failed to get home directory: "+err.Error(), rootFlex, form, list)
+					return nil
+				}
+
+				scpEzDir := filepath.Join(homeDir, "SCP-EZ")
+				if _, err := os.Stat(scpEzDir); os.IsNotExist(err) {
+					os.Mkdir(scpEzDir, os.ModePerm)
+				}
+
+				allSucceeded := true
 				for filePath := range selectedFiles {
 					remotePath := filepath.Join(path, filePath)
-					if err := transferFile(username, password, server, remotePath); err != nil {
-						showModal(app, "Transfer Failed:"+err.Error(), rootFlex, form, list)
+					isDir, err := isValidDirectory(username, password, server, remotePath)
+					if err != nil {
+						showModal(app, "Error checking if path is a directory: "+err.Error(), rootFlex, form, list)
 						return nil
 					}
+
+					var localBaseDir string
+					if isDir {
+						localBaseDir = scpEzDir
+					} else {
+						localBaseDir = homeDir
+					}
+
+					if err := transferPath(username, password, server, remotePath, localBaseDir); err != nil {
+						showModal(app, "Transfer Failed:"+err.Error(), rootFlex, form, list)
+						allSucceeded = false
+						break
+					}
 				}
-				showModal(app, "Succeed Transfer!!", rootFlex, form, list)
+
+				if allSucceeded {
+					showModal(app, "Succeed Transfer!!", rootFlex, form, list)
+				}
 				return nil
+
 			}
 		}
 		return event
@@ -144,7 +175,7 @@ func navigateDir(path, username, password, server string, app *tview.Application
 	app.SetFocus(list)
 }
 
-func transferFile(username, password, server, remotePath string) error {
+func transferFile(username, password, server, remotePath, localBaseDir string) error {
 	config := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{
@@ -155,42 +186,83 @@ func transferFile(username, password, server, remotePath string) error {
 
 	client, err := ssh.Dial("tcp", server+":22", config)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect to server: %v", err)
 	}
 	defer client.Close()
 
-	// 新しいSSHセッションを開始
 	session, err := client.NewSession()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to start session: %v", err)
 	}
 	defer session.Close()
 
-	// リモートファイルを開く
-	srcFile, err := session.Output("cat " + "\"" + remotePath + "\"")
+	var stderr bytes.Buffer
+	session.Stderr = &stderr
+
+	sanitizedPath := strings.Replace(remotePath, "*", "", -1)
+
+	cmd := "cat \"" + sanitizedPath + "\""
+	srcFile, err := session.Output(cmd)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to execute command: '%s', stderr: %s, error: %v", cmd, stderr.String(), err)
 	}
 
-	// ホームディレクトリの取得
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	// ローカルファイルパスを決定
-	localFilePath := filepath.Join(homeDir, filepath.Base(remotePath))
+	localFilePath := filepath.Join(localBaseDir, filepath.Base(sanitizedPath))
 	dstFile, err := os.Create(localFilePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create local file: %v", err)
 	}
 	defer dstFile.Close()
 
-	// リモートファイルの内容をローカルファイルに書き込み
 	if _, err = io.Copy(dstFile, bytes.NewReader(srcFile)); err != nil {
-		return err
+		return fmt.Errorf("failed to write to local file: %v", err)
 	}
 
+	return nil
+}
+
+func transferPath(username, password, server, remotePath string, localBaseDir string) error {
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	client, err := ssh.Dial("tcp", server+":22", config)
+	if err != nil {
+		return fmt.Errorf("failed to connect to server: %v", err)
+	}
+	defer client.Close()
+
+	isDir, err := isValidDirectory(username, password, server, remotePath)
+	if err != nil {
+		return fmt.Errorf("failed to determine if path is a directory: %v", err)
+	}
+
+	if isDir {
+		files, err := connectAndListFiles(username, password, server, remotePath)
+		if err != nil {
+			return fmt.Errorf("failed to list files in directory: %v", err)
+		}
+
+		localDir := filepath.Join(localBaseDir, filepath.Base(remotePath))
+		if err := os.MkdirAll(localDir, os.ModePerm); err != nil {
+			return fmt.Errorf("failed to create local directory: %v", err)
+		}
+
+		for _, file := range files {
+			remoteFilePath := filepath.Join(remotePath, file)
+			if err := transferPath(username, password, server, remoteFilePath, localDir); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := transferFile(username, password, server, remotePath, localBaseDir); err != nil {
+			return fmt.Errorf("failed to transfer file: %v", err)
+		}
+	}
 	return nil
 }
 
@@ -277,28 +349,31 @@ func isValidDirectory(username, password, server, path string) (bool, error) {
 
 	client, err := ssh.Dial("tcp", server+":22", config)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to connect to server: %v", err)
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to start session: %v", err)
 	}
 	defer session.Close()
 
 	var b bytes.Buffer
 	session.Stdout = &b
-	cmd := "ls -ld \"" + path + "\""
+	cmd := fmt.Sprintf("if [ -d \"%s\" ]; then echo true; else echo false; fi", path)
 	if err := session.Run(cmd); err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to execute command: %v, error: %v", cmd, err)
 	}
 
-	output := b.String()
-	if len(output) > 0 && output[0] == 'd' {
+	output := strings.TrimSpace(b.String())
+	if output == "true" {
 		return true, nil
+	} else if output == "false" {
+		return false, nil
+	} else {
+		return false, fmt.Errorf("unexpected output: %s", output)
 	}
-	return false, nil
 }
 
 func connectAndListFiles(username, password, server, dir string) ([]string, error) {
