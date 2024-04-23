@@ -89,14 +89,14 @@ func navigateDir(path, username, password, server string, app *tview.Application
 	selectedFiles := make(map[string]struct{})
 
 	list.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
-		cleanText := strings.TrimSuffix(strings.TrimPrefix(mainText, "[blue]"), "[white]")
+		cleanText := strings.TrimSuffix(strings.TrimPrefix(mainText, "[red]"), "[white]")
 
 		if _, ok := selectedFiles[cleanText]; ok {
 			delete(selectedFiles, cleanText)
 			list.SetItemText(index, cleanText, "")
 		} else {
 			selectedFiles[cleanText] = struct{}{}
-			list.SetItemText(index, "[blue]"+cleanText+"[white]", "")
+			list.SetItemText(index, "[red]"+cleanText+"[white]", "")
 		}
 	})
 
