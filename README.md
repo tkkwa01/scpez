@@ -2,7 +2,7 @@
 🚀 Eazy to use SCP client for transferring files between two systems.
 
 ## 🖼 Screenshot️
-![SCP-EZ](https://github.com/tkkwa01/scpez/assets/130450932/dbbfc871-e135-4c44-96d4-fe89be1b1e10)
+![screen](https://github.com/tkkwa01/scpez/assets/130450932/42ae415d-255b-43e6-9eed-4562a2d81b72)
 
 ## 📝️ Description
 This application is a simple SCP client that allows users to transfer files between two systems. The application is built using Go and tview library. The application is cross-platform and can be run on macOS, Linux and FreeBSD.
