@@ -47,12 +47,12 @@ If you transfer directories, the application will create a new directory named `
 ##  👩‍💻 Keybindings
 | Key        | Description                    |
 |------------|--------------------------------|
-| Tab        | next panes                     |
-| Shft + Tab | back panes                     |
-| Enter      | navigate to the directory      |
-| B          | back to the previous directory |
-| L          | preview the file               |
-| Q          | quit preview                   |
-| Space      | select / unselect file         |
-| T          | transfer selected files        |
-| ctrl + c   | quit the application           |
+| `Tab`       | next panes                     |
+| `Shft + Tab` | back panes                     |
+| `Enter`      | navigate to the directory      |
+| `B`          | back to the previous directory |
+| `L`          | preview the file               |
+| `Q`          | quit preview                   |
+| `Space`      | select / unselect file         |
+| `T`          | transfer selected files        |
+| `ctrl + c`   | quit the application           |
