@@ -41,7 +41,7 @@ scpez-mac
 ```
 
 ## 🧑‍🎓 How to use
-First, enter the server name, username, and password. Connect to the server and select the directory or file you want using the space key. Press the T key to copy the selected directory or file to your home directory.
+First, enter the server name, username, and password. Connect to the server and select the directory or file you want using the `space key`. Press the `T key` to copy the selected directory or file to your home directory.
 If you transfer directories, the application will create a new directory named `SCP-EZ` in the home directory. The transferred files will be stored in the `SCP-EZ` directory.
 
 ##  👩‍💻 Keybindings
