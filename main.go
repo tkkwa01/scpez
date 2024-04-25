@@ -7,6 +7,7 @@ import (
 	"github.com/rivo/tview"
 	"golang.org/x/crypto/ssh"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,6 +168,10 @@ func navigateDir(path, username, password, server string, app *tview.Application
 				return nil
 
 			}
+		case 'a', 'A':
+			// ローカルファイルリストへの切り替え
+			switchToLocalFiles(app, rootFlex)
+			return nil
 		}
 		return event
 	})
@@ -404,4 +409,81 @@ func connectAndListFiles(username, password, server, dir string) ([]string, erro
 	}
 
 	return strings.Split(strings.TrimSpace(b.String()), "\n"), nil
+}
+
+func uploadFile(username, password, server, localPath, remotePath string) error {
+	// SSHクライアント設定
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	// サーバーへの接続
+	client, err := ssh.Dial("tcp", server+":22", config)
+	if err != nil {
+		return fmt.Errorf("サーバーへの接続に失敗: %v", err)
+	}
+	defer client.Close()
+
+	// SSHセッションの作成
+	session, err := client.NewSession()
+	if err != nil {
+		return fmt.Errorf("セッションの開始に失敗: %v", err)
+	}
+	defer session.Close()
+
+	// ローカルファイルを開く
+	srcFile, err := os.Open(localPath)
+	if err != nil {
+		return fmt.Errorf("ローカルファイルのオープンに失敗: %v", err)
+	}
+	defer srcFile.Close()
+
+	// リモートパスのクオートとサニタイズを行う
+	sanitizedPath := strings.Replace(remotePath, "*", "", -1)
+	sanitizedPath = "\"" + sanitizedPath + "\""
+
+	// リモートでcatコマンドを使ってファイルを作成
+	session.Stdin = srcFile
+	if err := session.Run("cat > " + sanitizedPath); err != nil {
+		return fmt.Errorf("リモートサーバーへのファイル転送に失敗: %v", err)
+	}
+
+	return nil
+}
+
+func switchToLocalFiles(app *tview.Application, rootFlex *tview.Flex) {
+	// 現在のリストを削除
+	rootFlex.RemoveItem(rootFlex.GetItem(2)) // ここでのインデックスは状況によります
+
+	// ローカルディレクトリの読み込み
+	homeDir, _ := os.UserHomeDir()
+	localFiles, _ := ioutil.ReadDir(homeDir)
+
+	// 新しいリストの作成
+	localList := tview.NewList().ShowSecondaryText(false).SetHighlightFullLine(true)
+	for _, file := range localFiles {
+		if !file.IsDir() { // フォルダ以外のファイルだけをリストアップ
+			localList.AddItem(file.Name(), "", 0, nil)
+		}
+	}
+
+	// リストにアップロード機能を追加
+	localList.SetSelectedFunc(func(index int, mainText, secondaryText string, shortcut rune) {
+		localFilePath := filepath.Join(homeDir, mainText)
+		remotePath := "~/" + mainText // 送信先のパスを指定
+		err := uploadFile("username", "password", "server", localFilePath, remotePath)
+		if err != nil {
+			showModal(app, "アップロードに失敗: "+err.Error(), rootFlex, nil, nil)
+		} else {
+			showModal(app, "アップロード成功!", rootFlex, nil, nil)
+		}
+	})
+
+	// 新しいリストを画面に追加
+	rootFlex.AddItem(localList, 0, 1, true)
+	app.SetFocus(localList)
 }
