@@ -19,16 +19,37 @@ Clone this repository
    ```
    
 ## 🏃Usage
-Run the following command to start the application
+Run the following command to build the application
 ```sh
 cd scpez
 
-./scpez-mac
-or 
-./scpez-linux
-or 
-./scpez-freebsd
+chmod +x build.sh
+
+./build.sh
 ```
+The build.sh script will build the application for macOS, Linux, and FreeBSD. 
+You can run the application by executing the following command
+
+for macOS
+```sh
+./scpez-darwin-amd64
+or
+./scpez-darwin-arm64
+```
+for Linux
+```sh
+./scpez-linux-amd64
+or
+./scpez-linux-arm64
+```
+for FreeBSD
+```sh
+./scpez-freebsd-amd64
+or
+./scpez-freebsd-arm64
+```
+
+
 
 ### Add the application to the PATH
 add the following line to the .bashrc or .zshrc file
@@ -37,7 +58,7 @@ export PATH="/path/to/project/scpez:$PATH"
 ```
 and you can run the application from anywhere in the terminal
 ```sh
-scpez-mac
+scpez-darwin-amd64
 ```
 
 ## 🧑‍🎓 How to use
