@@ -25,9 +25,13 @@ cd scpez
 
 ./scpez-mac
 or 
-./scpez-linux
+./scpez-linux-amd64
+or
+./scpez-linux-arm64
 or 
-./scpez-freebsd
+./scpez-freebsd-amd64
+or
+./scpez-freebsd-arm64
 ```
 
 ### Add the application to the PATH
