@@ -315,7 +315,10 @@ func getFileContent(username, password, server, path string) string {
 
 	var b bytes.Buffer
 	session.Stdout = &b
-	if err := session.Run("cat \"" + path + "\""); err != nil {
+
+	sanitizedPath := strings.Replace(path, "*", "", -1)
+
+	if err := session.Run("cat \"" + sanitizedPath + "\""); err != nil {
 		return ""
 	}
 
