@@ -3,13 +3,15 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+	"golang.org/x/crypto/ssh"
 )
 
 func main() {
@@ -138,23 +140,16 @@ func navigateDir(path, username, password, server string, app *tview.Application
 					os.Mkdir(scpEzDir, os.ModePerm)
 				}
 
+				currentDate := time.Now().Format("060102") // YYMMDD形式
+				dateDir := filepath.Join(scpEzDir, currentDate)
+				if _, err := os.Stat(dateDir); os.IsNotExist(err) {
+					os.Mkdir(dateDir, os.ModePerm)
+				}
+
 				allSucceeded := true
 				for filePath := range selectedFiles {
 					remotePath := filepath.Join(path, filePath)
-					isDir, err := isValidDirectory(username, password, server, remotePath)
-					if err != nil {
-						showModal(app, "Error checking if path is a directory: "+err.Error(), rootFlex, form, list)
-						return nil
-					}
-
-					var localBaseDir string
-					if isDir {
-						localBaseDir = scpEzDir
-					} else {
-						localBaseDir = homeDir
-					}
-
-					if err := transferPath(username, password, server, remotePath, localBaseDir); err != nil {
+					if err := transferPath(username, password, server, remotePath, dateDir); err != nil {
 						showModal(app, "Transfer Failed:"+err.Error(), rootFlex, form, list)
 						allSucceeded = false
 						break
