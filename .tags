@@ -61,7 +61,7 @@
 !_TAG_PARSER_VERSION!Sh	0.0	/current.age/
 !_TAG_PARSER_VERSION!XML	0.0	/current.age/
 !_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
-!_TAG_PROC_CWD	/Users/aoi/pj/go/scpez/	//
+!_TAG_PROC_CWD	/Users/aoi/scpez/	//
 !_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
 !_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
 !_TAG_PROGRAM_URL	https://ctags.io/	/official site/
@@ -75,10 +75,8 @@
 !_TAG_ROLE_DESCRIPTION!Go!unknown	receiverType	/receiver type/
 !_TAG_ROLE_DESCRIPTION!Sh!heredoc	endmarker	/end marker/
 !_TAG_ROLE_DESCRIPTION!Sh!script	loaded	/loaded/
-2f5LuwANunIlVRrIm9dWmCOHRMi	.idea/workspace.xml	/^  <component name="ProjectId" id="2f5LuwANunIlVRrIm9dWmCOHRMi" \/>$/;"	i
 Add the application to the PATH	README.md	/^### Add the application to the PATH$/;"	S	section:SCP-EZ 🚀""🏃Usage
 SCP-EZ 🚀	README.md	/^# SCP-EZ 🚀$/;"	c
-a37f448c-a8a2-4e27-9df0-b6623ad1cc1d	.idea/workspace.xml	/^    <list default="true" id="a37f448c-a8a2-4e27-9df0-b6623ad1cc1d" name="Changes" comment="ssh先/;"	i
 connectAndListFiles	main.go	/^func connectAndListFiles(username, password, server, dir string) ([]string, error) {$/;"	f	package:main	typeref:typename:([]string, error)
 createForm	main.go	/^func createForm(app *tview.Application, rootFlex *tview.Flex) *tview.Form {$/;"	f	package:main	typeref:typename:*tview.Form
 getFileContent	main.go	/^func getFileContent(username, password, server, path string) string {$/;"	f	package:main	typeref:typename:string

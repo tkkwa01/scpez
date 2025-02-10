@@ -345,7 +345,7 @@ func isValidDirectory(username, password, server, path string) (bool, error) {
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	client, err := ssh.Dial("tcp", server+":22", config)
+	client, err := ssh.Dial("tcp", server+"22", config)
 	if err != nil {
 		return false, fmt.Errorf("failed to connect to server: %v", err)
 	}
